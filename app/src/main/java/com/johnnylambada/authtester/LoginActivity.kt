@@ -24,6 +24,8 @@ import android.widget.TextView
 import java.util.ArrayList
 import android.Manifest.permission.READ_CONTACTS
 import android.content.Intent
+import com.johnnylambada.authtester.tokenstore.TokenStore
+import com.johnnylambada.authtester.tokenstore.TokenStoreFactory
 
 import kotlinx.android.synthetic.main.activity_login.*
 
@@ -36,8 +38,16 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
      */
     private var mAuthTask: UserLoginTask? = null
 
+    private var mTokenStore: TokenStore? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        mTokenStore = TokenStoreFactory.build(this);
+        if (mTokenStore!!.retrieveToken().length>0){
+            finish()
+            startActivity(Intent(this@LoginActivity,MainActivity::class.java))
+            return
+        }
         setContentView(R.layout.activity_login)
         // Set up the login form.
         populateAutoComplete()
@@ -240,16 +250,16 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
      */
-    inner class UserLoginTask internal constructor(private val mEmail: String, private val mPassword: String) : AsyncTask<Void, Void, Boolean>() {
+    inner class UserLoginTask internal constructor(private val mEmail: String, private val mPassword: String) : AsyncTask<Void, Void, String>() {
 
-        override fun doInBackground(vararg params: Void): Boolean? {
+        override fun doInBackground(vararg params: Void): String {
             // TODO: attempt authentication against a network service.
 
             try {
                 // Simulate network access.
                 Thread.sleep(800)
             } catch (e: InterruptedException) {
-                return false
+                return ""
             }
 
             return DUMMY_CREDENTIALS
@@ -257,16 +267,17 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
                     .firstOrNull { it[0] == mEmail }
                     ?.let {
                         // Account exists, return true if the password matches.
-                        it[1] == mPassword
+                        return if (it[1] == mPassword) it[2] else ""
                     }
-                    ?: true
+                    ?: ""
         }
 
-        override fun onPostExecute(success: Boolean?) {
+        override fun onPostExecute(token: String) {
             mAuthTask = null
             showProgress(false)
 
-            if (success!!) {
+            if (token != "") {
+                mTokenStore!!.storeToken(token)
                 finish()
                 startActivity(Intent(this@LoginActivity,MainActivity::class.java))
             } else {
@@ -292,6 +303,6 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
          * A dummy authentication store containing known user names and passwords.
          * TODO: remove after connecting to a real authentication system.
          */
-        private val DUMMY_CREDENTIALS = arrayOf("foo@example.com:hello", "bar@example.com:world")
+        private val DUMMY_CREDENTIALS = arrayOf("foo@example.com:hello:flobgobber", "bar@example.com:world:floobflipper")
     }
 }
